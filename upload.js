@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const buffer = Buffer.from(base64, "base64");
 
     const form = new FormData();
-    form.append("chat_id", process.env.xoNA12);
+    form.append("chat_id", process.env.@xoNA12_bot);
     form.append("photo", new Blob([buffer], { type: "image/png" }), "image.png");
 
     const tg = await fetch(`https://api.telegram.org/bot${process.env.8179040156:AAFdn8ApCAIbaWhpLaFQMyqrwUwfR1hfyuY}/sendPhoto`, {
